@@ -57,27 +57,28 @@ function RuntimeLogRecordMetadata(; datetime::DateTime=Dates.now(), thread_id::I
 end
 
 """
-    LogRecordData
+    LogRecordData(data)
+
+    LogRecordData(args::Pair{Symbol, <:Any}...)
 
 A type representing an optional collection of `key => value` pairs attached to a log record.
 """
 struct LogRecordData 
     data::Union{Nothing,Vector{Pair{Symbol, Any}}}
+    function LogRecordData(d; exclude::Union{Symbol,Vector{Symbol}}=Symbol[])
+        if !isnothing(d) && !isempty(d)
+            _exclude = exclude isa Symbol ? [exclude] : exclude
+            return new([convert(Pair{Symbol,Any}, di) for di in d if first(di) ∉ _exclude])
+        else
+            return new(nothing)
+        end
+    end
 end
 Base.isempty(l::LogRecordData) = isnothing(l.data) || isempty(l.data)
 Base.length(l::LogRecordData) = isnothing(l.data) ? 0 : length(l.data)
 Base.pairs(l::LogRecordData) = isnothing(l.data) ? pairs((;)) : l.data
 Base.iterate(l::LogRecordData) = isnothing(l.data) ? nothing : iterate(l.data)
 Base.iterate(l::LogRecordData, st) = isnothing(st) ? nothing : iterate(l.data, st)
-
-function LogRecordData(d::Union{Base.Pairs, Vector{Pair{Symbol, <:Any}}}; exclude::Union{Symbol,Vector{Symbol}}=Symbol[])
-    if !isempty(d)
-        _exclude = exclude isa Symbol ? [exclude] : exclude
-        return LogRecordData([convert(Pair{Symbol,Any}, di) for di in d if first(di) ∉ _exclude])
-    else
-        return LogRecordData(nothing)
-    end
-end
 
 function LogRecordData(args::Pair{Symbol, <:Any}...) 
     if !isempty(args)

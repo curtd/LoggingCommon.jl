@@ -12,5 +12,5 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 
 [compat]
 Dictionaries = "0.3"
-julia = "1.6"
 PrecompileTools = "1"
+julia = "1.6"

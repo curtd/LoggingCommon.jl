@@ -3,6 +3,12 @@ const LogLevelIntType = fieldtype(LogLevel, :level)
 const NotSet = LogLevel(typemin(LogLevelIntType))
 
 const All = NotSet + 1
+if VERSION < v"1.8"
+    const Debug = Logging.Debug
+    const Info = Logging.Info 
+    const Error = Logging.Error
+    const Warn = Logging.Warn
+end
 const Trace = Debug - 1
 const Notice = Info + 1 
 const Critical = Error + 1 
