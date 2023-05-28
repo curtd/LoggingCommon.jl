@@ -210,7 +210,7 @@ struct StacktraceLogRecord <: AbstractLogRecord
     stacktrace::Base.StackTraces.StackTrace
 end
 
-stacktrace_log_record(static_meta::StaticLogRecordMetadata,  stacktrace::Base.StackTraces.StackTrace, args...; exception::Union{Nothing,Exception}=nothing, kwargs...) = LogRecord(static_meta, StacktraceLogRecord(exception, stacktrace), args...; kwargs...)
+stacktrace_log_record(static_meta::StaticLogRecordMetadata, stacktrace::Base.StackTraces.StackTrace, args...; exception::Union{Nothing,Exception}=nothing, kwargs...) = LogRecord(static_meta, StacktraceLogRecord(exception, stacktrace), args...; kwargs...)
 
 stacktrace_log_record(static_meta::StaticLogRecordMetadata, bt::Vector, args...; kwargs...) = stacktrace_log_record(static_meta, stacktrace(bt), args...; kwargs...)
 
