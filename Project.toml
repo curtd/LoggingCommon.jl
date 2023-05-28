@@ -1,7 +1,7 @@
 name = "LoggingCommon"
 uuid = "44db15ec-78df-42c5-8c4e-36d253f36098"
 authors = ["Curt Da Silva <curt.dasilva@gmail.com>"]
-version = "1.0.0-DEV"
+version = "1.0.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
