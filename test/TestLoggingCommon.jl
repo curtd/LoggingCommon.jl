@@ -52,6 +52,10 @@ module TestLoggingCommon
             r = StaticLogRecordMetadata("source", LogLevel(0), "level_name", "filename", 1, "group", "id")
             @test log_level(r) == LogLevel(0)
             @test log_level_name(r) == "level_name"
+            r = StaticLogRecordMetadata("source", NamedLogLevel(:info), "filename", 1, "group", "id")
+            @test log_level(r) == Info
+            @test log_level_name(r) == "info"
+            
         end
         @testset "RuntimeLogRecordMetadata" begin 
             datetime = DateTime(2023, 1, 1)
