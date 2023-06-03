@@ -28,12 +28,12 @@ log_level_name(meta::StaticLogRecordMetadata) = meta.level_name
 _filename(line::LineNumberNode) = !isnothing(line.file) ? string(line.file) : nothing
 
 function StaticLogRecordMetadata(source::AbstractString, level::LogLevel, level_name::String, filename::Union{String, Nothing}, line_num::Int, group=nothing, id=nothing) 
-    return StaticLogRecordMetadata(string(source), level, something(level_name, ""), something(filename, "?"), line_num, group, id)
+    return StaticLogRecordMetadata(string(source), level, level_name, something(filename, "?"), line_num, group, id)
 end
 
 StaticLogRecordMetadata(source::AbstractString, level, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, "", _filename(lnn), lnn.line, args...)
 
-StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{LineNumberNode, String, Nothing}, line_num::Union{LineNumberNode, Int}, args...) = StaticLogRecordMetadata(source, level, nearest_log_level(level), filename, line_num, args...)
+StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{LineNumberNode, String, Nothing}, line_num::Union{LineNumberNode, Int}, args...) = StaticLogRecordMetadata(source, level, string(nearest_log_level(level)), filename, line_num, args...)
 
 StaticLogRecordMetadata(source::AbstractString, level::NamedLogLevel,  args...) = StaticLogRecordMetadata(source, log_level(level), string(level), args...)
 
