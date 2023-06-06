@@ -26,7 +26,7 @@ for L in (:NotSet, :All, :Off, :Trace, :Notice, :Critical, :Alert, :Emergency, :
     @doc """
         $($L_name)
 
-    
+
         Alias for [`$($L)`](@ref LogLevel)""" $L
     end
 end
