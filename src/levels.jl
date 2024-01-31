@@ -27,7 +27,7 @@ for L in (:NotSet, :All, :Off, :Trace, :Notice, :Critical, :Alert, :Emergency, :
         $($L_name)
 
 
-        Alias for [`$($L)`](Base.Logging.LogLevel)""" $L
+        Alias for `$($L)`::Base.Logging.LogLevel""" $L
     end
 end
 
