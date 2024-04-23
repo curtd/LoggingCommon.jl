@@ -75,11 +75,12 @@ struct LogRecordData{K}
     LogRecordData{K}() where {K} = new(Dictionary{K, Any}())
 end
 @define_interface LogRecordData interface=equality
-@forward_methods LogRecordData field=data Base.isempty(_) Base.length(_) Base.pairs(_)
+@forward_methods LogRecordData field=data Base.isempty(_) Base.length(_) Base.pairs(_) Base.get(_, key, default) Base.haskey(_, key)
 Base.eltype(::Type{LogRecordData{K}}) where {K} = Pair{K, Any} 
 Base.iterate(d::LogRecordData) = iterate(pairs(d.data))
 Base.iterate(d::LogRecordData, st) = iterate(pairs(d.data), st)
 Base.collect(d::LogRecordData) = collect(pairs(d.data))
+Base.@propagate_inbounds Base.getindex(d::LogRecordData, key) = getindex(d.data, key)
 
 """
     add_record_data!(r, data::Pair)
@@ -124,7 +125,7 @@ log_record_data() = _log_record_data(Symbol, ())
 
 LogRecordData(::Nothing; kwargs...) = _log_record_data(Symbol, (); kwargs...)
 LogRecordData(data; kwargs...) = log_record_data(data; kwargs...)
-LogRecordData(args::Pair{Symbol, <:Any}...; kwargs...) = _log_record_data(Symbol, args; kwargs...)
+LogRecordData(args::Pair...; kwargs...) = log_record_data(args; kwargs...)
 
 
 
@@ -210,7 +211,9 @@ end
 
 LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata, record::AbstractLogRecord, data::LogRecordData) = LogRecord{typeof(record)}(static_meta, runtime_meta, data, record)
 
-LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata,  record::AbstractLogRecord, args::Pair{<:Any, <:Any}...) = LogRecord(static_meta, runtime_meta, record, LogRecordData(args...))
+LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata,  record::AbstractLogRecord, arg1::Pair{<:Any,<:Any}, args::Pair{<:Any, <:Any}...) = LogRecord(static_meta, runtime_meta, record, log_record_data((arg1, args...)))
+
+LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata, record::AbstractLogRecord, DataKeyType::Type=Symbol) = LogRecord(static_meta, runtime_meta, record, log_record_data(DataKeyType, ()))
 
 LogRecord(static_meta::StaticLogRecordMetadata, record::AbstractLogRecord, args...;  runtime_meta::RuntimeLogRecordMetadata=RuntimeLogRecordMetadata()) = LogRecord(static_meta, runtime_meta, record, args...)
 
