@@ -133,7 +133,7 @@ end
 
 NamedLogLevel(l::NamedLogLevel) = l
 
-Base.string(l::NamedLogLevel) = string(l.name)
+Base.string(l::NamedLogLevel) = intern(string(l.name))
 
 log_level(l::NamedLogLevel) = symbol_to_log_levels[l.name]
 
