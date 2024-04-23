@@ -97,6 +97,7 @@ module TestLoggingCommon
             end
             d = log_record_data(("a" => 1, "b" => 2); exclude="a")
             @Test collect(d) == ["b" => 2]
+            @Test d == log_record_data(String, ("a" => 1, "b" => 2); exclude="a")
         end
         @testset "message_log_record" begin 
             static = StaticLogRecordMetadata(Main, NamedLogLevel(:info), "a.jl", 1, "group", "id")

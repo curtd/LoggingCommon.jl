@@ -20,7 +20,11 @@ struct StaticLogRecordMetadata
     line_num::Int
     group::Any
     id::Any
+    function StaticLogRecordMetadata(source::String, level::LogLevel, level_name::String, filename::String, line_num::Int, group, id)
+        return new(intern(source), level, intern(level_name), intern(filename), line_num, group, id)
+    end
 end
+@define_interface StaticLogRecordMetadata interface=equality
 
 log_level(meta::StaticLogRecordMetadata) = meta.level
 log_level_name(meta::StaticLogRecordMetadata) = meta.level_name
@@ -31,14 +35,14 @@ function StaticLogRecordMetadata(source::AbstractString, level::LogLevel, level_
     return StaticLogRecordMetadata(string(source), level, level_name, something(filename, "?"), line_num, group, id)
 end
 
-StaticLogRecordMetadata(source::AbstractString, level::LogLevel, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, intern(""), _filename(lnn), lnn.line, args...)
+StaticLogRecordMetadata(source::AbstractString, level::LogLevel, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, "", _filename(lnn), lnn.line, args...)
 
 StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{String, Nothing}, line_num::Union{LineNumberNode, Int}, args...) = StaticLogRecordMetadata(source, level, string(nearest_log_level(level)), filename, line_num, args...)
 
 StaticLogRecordMetadata(source::AbstractString, level::NamedLogLevel,  args...) = StaticLogRecordMetadata(source, log_level(level), string(level), args...)
 
 
-StaticLogRecordMetadata(source::Module, args...) = StaticLogRecordMetadata(intern(module_str_trim_main(source)), args...)
+StaticLogRecordMetadata(source::Module, args...) = StaticLogRecordMetadata(module_str_trim_main(source), args...)
 
 """
     RuntimeLogRecordMetadata(datetime::DateTime, thread_id::Int, worker_id::Int)
@@ -52,7 +56,7 @@ struct RuntimeLogRecordMetadata
     thread_id::Int
     worker_id::Int
 end
-
+@define_interface RuntimeLogRecordMetadata interface=equality
 function RuntimeLogRecordMetadata(; datetime::DateTime=Dates.now(), thread_id::Int=Threads.threadid(), worker_id::Int=Distributed.myid())
     return RuntimeLogRecordMetadata(datetime, thread_id, worker_id)
 end
@@ -70,6 +74,7 @@ struct LogRecordData{K}
     data::Dictionary{K, Any}
     LogRecordData{K}() where {K} = new(Dictionary{K, Any}())
 end
+@define_interface LogRecordData interface=equality
 @forward_methods LogRecordData field=data Base.isempty(_) Base.length(_) Base.pairs(_)
 Base.eltype(::Type{LogRecordData{K}}) where {K} = Pair{K, Any} 
 Base.iterate(d::LogRecordData) = iterate(pairs(d.data))
@@ -85,8 +90,8 @@ add_record_data!(d::LogRecordData{K}, data::Pair{K, <:Any}) where {K}  = (set!(d
 
 add_record_data!(d::LogRecordData{K}, data::Pair) where {K} = add_record_data!(d, convert(K, first(data))::K => last(data))
 
-function _log_record_data(kv_pairs, T; exclude=())
-    d = LogRecordData{T}()
+function _log_record_data(KeyType, kv_pairs; exclude=())
+    d = LogRecordData{KeyType}()
     _exclude = (exclude isa Tuple || exclude isa Vector) ? exclude : (exclude,)
     for (k, v) in kv_pairs 
         if k ∉ _exclude
@@ -98,21 +103,28 @@ end
 key_type(::Type{Pair{K, V}}) where {K, V} = K
 
 """
-    log_record_data(kv_pairs; [exclude=()]) -> LogRecordData
+    log_record_data([KeyType], kv_pairs; [exclude=()]) -> LogRecordData
 
-Returns a `LogRecordData` from the input `key => value` pairs
+Returns a `LogRecordData` from the input `key::KeyType => value` pairs.
+
+If `KeyType` is not provided, it will be inferred from a set of non-empty `kv_pairs`.
 """
-log_record_data(kv_pairs; exclude=()) = _log_record_data(kv_pairs, mapfoldl(key_type ∘ typeof, promote_type, kv_pairs; init=Union{}); exclude)
+log_record_data(KeyType::Type, kv_pairs; kwargs...) = _log_record_data(KeyType, kv_pairs; kwargs...)
+
+function log_record_data(kv_pairs; kwargs...) 
+    KT = mapfoldl(key_type ∘ typeof, promote_type, kv_pairs; init=Union{})
+    return log_record_data(KT, kv_pairs; kwargs...)
+end
 
 """
     log_record_data() -> LogRecordData{Symbol}
 
 """
-log_record_data() = _log_record_data((), Symbol)
+log_record_data() = _log_record_data(Symbol, ())
 
-LogRecordData(::Nothing; kwargs...) = _log_record_data((), Symbol; kwargs...)
+LogRecordData(::Nothing; kwargs...) = _log_record_data(Symbol, (); kwargs...)
 LogRecordData(data; kwargs...) = log_record_data(data; kwargs...)
-LogRecordData(args::Pair{Symbol, <:Any}...; kwargs...) = _log_record_data(args, Symbol; kwargs...)
+LogRecordData(args::Pair{Symbol, <:Any}...; kwargs...) = _log_record_data(Symbol, args; kwargs...)
 
 
 
@@ -183,6 +195,7 @@ struct LogRecord{R} <: AbstractLogRecord
     data::LogRecordData
     record::R
 end
+@define_interface LogRecord interface=equality
 @forward_methods LogRecord field=data add_record_data!(_, data)
 
 Base.propertynames(::LogRecord{R}) where {R} = (fieldnames(LogRecord)..., fieldnames(R)...)
@@ -215,6 +228,7 @@ A type representing a log record with an associated `message`
 struct MessageLogRecord <: AbstractLogRecord
     message::AbstractString
 end
+@define_interface MessageLogRecord interface=equality
 
 """
     message_log_record(static_meta::StaticLogRecordMetadata, message::AbstractString, data; [runtime_meta = RuntimeLogRecordMetadata()])
@@ -240,6 +254,7 @@ struct StacktraceLogRecord <: AbstractLogRecord
     exception::Union{Nothing,Exception}
     stacktrace::Base.StackTraces.StackTrace
 end
+@define_interface StacktraceLogRecord interface=equality
 
 stacktrace_log_record(static_meta::StaticLogRecordMetadata, stacktrace::Base.StackTraces.StackTrace, args...; exception::Union{Nothing,Exception}=nothing, kwargs...) = LogRecord(static_meta, StacktraceLogRecord(exception, stacktrace), args...; kwargs...)
 
