@@ -95,6 +95,11 @@ module TestLoggingCommon
                     @Test v == String 
                 end
             end
+            d[:a] == 1 
+            d[:b] == String
+            @Test haskey(d, :a)
+            @Test haskey(d, :c) == false 
+            @Test get(d, :c, nothing) |> isnothing
             d = log_record_data(("a" => 1, "b" => 2); exclude="a")
             @Test collect(d) == ["b" => 2]
             @Test d == log_record_data(String, ("a" => 1, "b" => 2); exclude="a")
