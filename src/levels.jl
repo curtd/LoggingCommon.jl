@@ -130,6 +130,7 @@ struct NamedLogLevel
         return new(level)
     end
 end
+@define_interface NamedLogLevel interface=equality
 
 NamedLogLevel(l::NamedLogLevel) = l
 
