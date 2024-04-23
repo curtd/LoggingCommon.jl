@@ -1,6 +1,6 @@
 module LoggingCommon 
 
-    using Dates, Dictionaries, Distributed, Logging, PrecompileTools
+    using Dates, Dictionaries, Distributed, ForwardMethods, Logging, InternedStrings, PrecompileTools
 
     # Log levels 
     export NotSet, All, Trace,Notice, Critical, Alert, Emergency, Fatal, AboveMax, Off
@@ -19,7 +19,7 @@ module LoggingCommon
 
     export AbstractLogRecord, LogRecord, MessageLogRecord, StacktraceLogRecord
 
-    export message_log_record, stacktrace_log_record
+    export message_log_record, stacktrace_log_record, add_record_data!
 
     export log_record_data, static_metadata, runtime_metadata, is_error_record
 

@@ -1,7 +1,7 @@
 function module_str_trim_main(_module::Module)
     name = fullname(_module)
     if first(name) == :Main && length(name) > 1
-        return join(name[2:end], '.')
+        return join(view(name, 2:length(name)), '.')
     else
         return join(name, '.')
     end
@@ -31,13 +31,14 @@ function StaticLogRecordMetadata(source::AbstractString, level::LogLevel, level_
     return StaticLogRecordMetadata(string(source), level, level_name, something(filename, "?"), line_num, group, id)
 end
 
-StaticLogRecordMetadata(source::AbstractString, level, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, "", _filename(lnn), lnn.line, args...)
+StaticLogRecordMetadata(source::AbstractString, level::LogLevel, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, intern(""), _filename(lnn), lnn.line, args...)
 
-StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{LineNumberNode, String, Nothing}, line_num::Union{LineNumberNode, Int}, args...) = StaticLogRecordMetadata(source, level, string(nearest_log_level(level)), filename, line_num, args...)
+StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{String, Nothing}, line_num::Union{LineNumberNode, Int}, args...) = StaticLogRecordMetadata(source, level, string(nearest_log_level(level)), filename, line_num, args...)
 
 StaticLogRecordMetadata(source::AbstractString, level::NamedLogLevel,  args...) = StaticLogRecordMetadata(source, log_level(level), string(level), args...)
 
-StaticLogRecordMetadata(source::Module, args...) = StaticLogRecordMetadata(module_str_trim_main(source), args...)
+
+StaticLogRecordMetadata(source::Module, args...) = StaticLogRecordMetadata(intern(module_str_trim_main(source)), args...)
 
 """
     RuntimeLogRecordMetadata(datetime::DateTime, thread_id::Int, worker_id::Int)
@@ -59,34 +60,61 @@ end
 """
     LogRecordData(data)
 
-    LogRecordData(args::Pair{Symbol, <:Any}...)
+    LogRecordData(args::Pair{<:Any, <:Any}...)
 
-A type representing an optional collection of `key => value` pairs attached to a log record.
+A type representing an optional collection of `key => value` pairs attached to a log record. 
+
+`data` must be an iterable collection where each element is a `Pair`
 """
-struct LogRecordData 
-    data::Union{Nothing,Vector{Pair{Symbol, Any}}}
-    function LogRecordData(d; exclude::Union{Symbol,Vector{Symbol}}=Symbol[])
-        if !isnothing(d) && !isempty(d)
-            _exclude = exclude isa Symbol ? [exclude] : exclude
-            return new([convert(Pair{Symbol,Any}, di) for di in d if first(di) ∉ _exclude])
-        else
-            return new(nothing)
+struct LogRecordData{K}
+    data::Dictionary{K, Any}
+    LogRecordData{K}() where {K} = new(Dictionary{K, Any}())
+end
+@forward_methods LogRecordData field=data Base.isempty(_) Base.length(_) Base.pairs(_)
+Base.eltype(::Type{LogRecordData{K}}) where {K} = Pair{K, Any} 
+Base.iterate(d::LogRecordData) = iterate(pairs(d.data))
+Base.iterate(d::LogRecordData, st) = iterate(pairs(d.data), st)
+Base.collect(d::LogRecordData) = collect(pairs(d.data))
+
+"""
+    add_record_data!(r, data::Pair)
+
+Adds the `data := key => value` pair to `r`
+"""
+add_record_data!(d::LogRecordData{K}, data::Pair{K, <:Any}) where {K}  = (set!(d.data, first(data), last(data)); nothing)
+
+add_record_data!(d::LogRecordData{K}, data::Pair) where {K} = add_record_data!(d, convert(K, first(data))::K => last(data))
+
+function _log_record_data(kv_pairs, T; exclude=())
+    d = LogRecordData{T}()
+    _exclude = (exclude isa Tuple || exclude isa Vector) ? exclude : (exclude,)
+    for (k, v) in kv_pairs 
+        if k ∉ _exclude
+            set!(d.data, k, v)
         end
     end
+    return d
 end
-Base.isempty(l::LogRecordData) = isnothing(l.data) || isempty(l.data)
-Base.length(l::LogRecordData) = isnothing(l.data) ? 0 : length(l.data)
-Base.pairs(l::LogRecordData) = isnothing(l.data) ? pairs((;)) : l.data
-Base.iterate(l::LogRecordData) = isnothing(l.data) ? nothing : iterate(l.data)
-Base.iterate(l::LogRecordData, st) = isnothing(st) ? nothing : iterate(l.data, st)
+key_type(::Type{Pair{K, V}}) where {K, V} = K
 
-function LogRecordData(args::Pair{Symbol, <:Any}...) 
-    if !isempty(args)
-        return LogRecordData(collect(args))
-    else
-        return LogRecordData(nothing)
-    end
-end
+"""
+    log_record_data(kv_pairs; [exclude=()]) -> LogRecordData
+
+Returns a `LogRecordData` from the input `key => value` pairs
+"""
+log_record_data(kv_pairs; exclude=()) = _log_record_data(kv_pairs, mapfoldl(key_type ∘ typeof, promote_type, kv_pairs; init=Union{}); exclude)
+
+"""
+    log_record_data() -> LogRecordData{Symbol}
+
+"""
+log_record_data() = _log_record_data((), Symbol)
+
+LogRecordData(::Nothing; kwargs...) = _log_record_data((), Symbol; kwargs...)
+LogRecordData(data; kwargs...) = log_record_data(data; kwargs...)
+LogRecordData(args::Pair{Symbol, <:Any}...; kwargs...) = _log_record_data(args, Symbol; kwargs...)
+
+
 
 """
     AbstractLogRecord 
@@ -98,7 +126,7 @@ abstract type AbstractLogRecord end
 """
     log_record_data(record)
 
-Returns the `key` => `value` pairs associated with `record`
+Returns an iterator over the `key` => `value` pairs associated with `record`
 """
 log_record_data(::AbstractLogRecord) = nothing
 
@@ -155,6 +183,9 @@ struct LogRecord{R} <: AbstractLogRecord
     data::LogRecordData
     record::R
 end
+@forward_methods LogRecord field=data add_record_data!(_, data)
+
+Base.propertynames(::LogRecord{R}) where {R} = (fieldnames(LogRecord)..., fieldnames(R)...)
 
 function Base.getproperty(l::LogRecord, name::Symbol)
     if name === :static_meta || name === :runtime_meta || name === :data || name === :record
@@ -166,7 +197,7 @@ end
 
 LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata, record::AbstractLogRecord, data::LogRecordData) = LogRecord{typeof(record)}(static_meta, runtime_meta, data, record)
 
-LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata,  record::AbstractLogRecord, args::Pair{Symbol, <:Any}...) = LogRecord(static_meta, runtime_meta, record, LogRecordData(args...))
+LogRecord(static_meta::StaticLogRecordMetadata, runtime_meta::RuntimeLogRecordMetadata,  record::AbstractLogRecord, args::Pair{<:Any, <:Any}...) = LogRecord(static_meta, runtime_meta, record, LogRecordData(args...))
 
 LogRecord(static_meta::StaticLogRecordMetadata, record::AbstractLogRecord, args...;  runtime_meta::RuntimeLogRecordMetadata=RuntimeLogRecordMetadata()) = LogRecord(static_meta, runtime_meta, record, args...)
 

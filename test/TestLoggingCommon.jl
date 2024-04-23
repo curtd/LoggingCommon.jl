@@ -73,16 +73,14 @@ module TestLoggingCommon
         end
         @testset "LogRecordData" begin 
             d = LogRecordData()
-            @Test isnothing(d.data) 
             @Test isnothing(Base.iterate(d))
             @Test isempty(Base.pairs(d)) 
             @Test isempty(d)
             @Test length(d) == 0 
             d = LogRecordData(:a => 1)
-            @Test d.data == [:a => 1]
-            @Test Base.pairs(d) == d.data
-            @Test Base.iterate(d) == (:a => 1, 2)
-            @Test Base.iterate(d, 2) |> isnothing
+            @Test Base.pairs(d) |> collect == [:a => 1]
+            @Test Base.iterate(d) == (:a => 1, 1)
+            @Test Base.iterate(d, 1) |> isnothing
             @Test !isempty(d)
             @Test length(d) == 1
 
@@ -90,13 +88,15 @@ module TestLoggingCommon
             @Test length(d) == 2
             for (i, (k,v)) in enumerate(d)
                 if i == 1
-                    @test k == :a 
-                    @test v == 1 
+                    @Test k == :a 
+                    @Test v == 1
                 else
-                    @test k == :b 
-                    @test v == String 
+                    @Test k == :b 
+                    @Test v == String 
                 end
             end
+            d = log_record_data(("a" => 1, "b" => 2); exclude="a")
+            @Test collect(d) == ["b" => 2]
         end
         @testset "message_log_record" begin 
             static = StaticLogRecordMetadata(Main, NamedLogLevel(:info), "a.jl", 1, "group", "id")
@@ -108,6 +108,11 @@ module TestLoggingCommon
             @test log_level_name(record) == "info"
             @test !is_error_record(record)
             @test isempty(log_record_data(record))
+
+            add_record_data!(record, :a => "1")
+            @Test log_record_data(record) |> collect == [:a => "1"]
+            add_record_data!(record, :b => true)
+            @Test log_record_data(record) |> collect == [:a => "1", :b => true]
 
             static = StaticLogRecordMetadata(Main, NamedLogLevel(:error), "a.jl", 1, "group", "id")
             record = message_log_record(static, "Error message", :a => 1, :b => String)
