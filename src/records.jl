@@ -1,7 +1,7 @@
 function module_str_trim_main(_module::Module)
     name = fullname(_module)
     if first(name) == :Main && length(name) > 1
-        return join(view(name, 2:length(name)), '.')
+        return join(name[2:length(name)], '.')
     else
         return join(name, '.')
     end
@@ -31,13 +31,13 @@ log_level_name(meta::StaticLogRecordMetadata) = meta.level_name
 
 _filename(line::LineNumberNode) = !isnothing(line.file) ? string(line.file) : nothing
 
-function StaticLogRecordMetadata(source::AbstractString, level::LogLevel, level_name::String, filename::Union{String, Nothing}, line_num::Int, group=nothing, id=nothing) 
-    return StaticLogRecordMetadata(string(source), level, level_name, something(filename, "?"), line_num, group, id)
+function StaticLogRecordMetadata(source::AbstractString, level::LogLevel, level_name::String, filename::Union{String, Nothing}, line_num::Union{Int, Nothing}, group=nothing, id=nothing) 
+    return StaticLogRecordMetadata(string(source), level, level_name, something(filename, i""), something(line_num, 0), group, id)
 end
 
-StaticLogRecordMetadata(source::AbstractString, level::LogLevel, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, "", _filename(lnn), lnn.line, args...)
+StaticLogRecordMetadata(source::AbstractString, level::LogLevel, lnn::LineNumberNode, args...) = StaticLogRecordMetadata(source, level, i"", _filename(lnn), lnn.line, args...)
 
-StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{String, Nothing}, line_num::Union{LineNumberNode, Int}, args...) = StaticLogRecordMetadata(source, level, string(nearest_log_level(level)), filename, line_num, args...)
+StaticLogRecordMetadata(source::AbstractString, level::LogLevel, filename::Union{String, Nothing}, line_num, args...) = StaticLogRecordMetadata(source, level, string(nearest_log_level(level)), filename, line_num, args...)
 
 StaticLogRecordMetadata(source::AbstractString, level::NamedLogLevel,  args...) = StaticLogRecordMetadata(source, log_level(level), string(level), args...)
 

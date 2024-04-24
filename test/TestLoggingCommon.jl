@@ -3,6 +3,8 @@ module TestLoggingCommon
     using LoggingCommon.Logging, LoggingCommon.Dates
     using TestingUtilities, Test 
 
+    @eval Main module TestModule 
+    end
     @testset "Levels" begin 
         @test_cases begin 
             input      |    output 
@@ -41,10 +43,10 @@ module TestLoggingCommon
     @testset "Records" begin 
         @testset "Utilties" begin 
             @test_cases begin 
-                input         | output 
-                Main          | "Main"
-                Main.Test     | "Test"
-                LoggingCommon | "LoggingCommon"
+                input               | output 
+                Main                | "Main"
+                Main.TestModule     | "TestModule"
+                LoggingCommon       | "LoggingCommon"
                 @test LoggingCommon.module_str_trim_main(input) == output
             end
         end
